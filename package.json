@@ -1,0 +1,73 @@
+{
+  "name": "@dragonia/shared",
+  "version": "0.1.0",
+  "description": "The paved-road foundation every Dragonia service imports: validated config, observability, and typed Kafka.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "registry": "http://192.168.1.42:4873"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    "./config": {
+      "types": "./dist/config/index.d.ts",
+      "import": "./dist/config/index.js",
+      "default": "./dist/config/index.js"
+    },
+    "./observability": {
+      "types": "./dist/observability/index.d.ts",
+      "import": "./dist/observability/index.js",
+      "default": "./dist/observability/index.js"
+    },
+    "./observability/tracing": {
+      "types": "./dist/observability/tracing-entry.d.ts",
+      "import": "./dist/observability/tracing-entry.js",
+      "default": "./dist/observability/tracing-entry.js"
+    },
+    "./kafka": {
+      "types": "./dist/kafka/index.d.ts",
+      "import": "./dist/kafka/index.js",
+      "default": "./dist/kafka/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.json",
+    "lint": "eslint src",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
+    "@opentelemetry/instrumentation-http": "^0.221.0",
+    "@opentelemetry/instrumentation-kafkajs": "^0.30.0",
+    "@opentelemetry/instrumentation-nestjs-core": "^0.67.0",
+    "@opentelemetry/instrumentation-undici": "^0.31.0",
+    "@opentelemetry/resources": "^2.10.0",
+    "@opentelemetry/sdk-node": "^0.221.0",
+    "@opentelemetry/semantic-conventions": "^1.43.0",
+    "import-in-the-middle": "^3.3.3",
+    "kafkajs": "^2.2.4",
+    "pino": "^10.3.1",
+    "pino-pretty": "^13.1.3",
+    "prom-client": "^15.1.3",
+    "tslib": "^2.3.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "@types/node": "^22.0.0",
+    "eslint": "^10.9.1",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "~3.6.2",
+    "typescript": "~5.9.2",
+    "typescript-eslint": "^8.68.0"
+  }
+}

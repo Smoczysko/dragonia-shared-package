@@ -1,0 +1,70 @@
+name: Publish @dragonia/shared → Verdaccio
+
+# Only what actually changes the package. A README edit does not publish, which matters because of
+# the version check below: given this filter, a run that finds its version already published means
+# exactly one thing — the library changed and nobody decided what kind of change it was.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+  workflow_dispatch: {}
+
+jobs:
+  publish:
+    # Self-hosted is not a preference here, it is the only option: Verdaccio is on the LAN and a
+    # GitHub-hosted runner cannot reach 192.168.1.42 at all.
+    runs-on: [self-hosted, homelab]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # No setup-node and no registry-url: the runner's own Node is used, and the scope mapping
+      # plus the publish token live in /root/.npmrc, mounted into the container by Ansible. The
+      # credential for a LAN-only registry never passes through GitHub.
+      - name: Install
+        run: npm ci
+
+      - name: Lint and typecheck
+        run: |
+          npm run lint
+          npm run typecheck
+
+      # The version is committed in package.json and bumped by hand, deliberately — unlike the
+      # othot-schema workflow, which derives the next version from the registry because its branch
+      # is protected against the bot. There is no such constraint here, and there is a reason to
+      # want the manual bump: the freshness metric names in this package are a contract consumed by
+      # one alert rule and one console for the whole fleet. Semver is the only channel for saying
+      # "this one breaks you", and auto-bumping minor on every push makes a typo fix and a
+      # fleet-breaking rename look identical.
+      - name: Refuse to republish an existing version
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          echo "package.json version: $version"
+
+          if npm view "@dragonia/shared@${version}" version >/dev/null 2>&1; then
+            echo "::error::@dragonia/shared@${version} is already published. Bump the version in package.json — patch, minor or major, whichever this change actually was."
+            exit 1
+          fi
+
+          echo "$version is free; publishing."
+
+      - name: Build and publish
+        run: npm publish
+
+      - name: Summary
+        if: success()
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          {
+            echo "### Published \`@dragonia/shared@${version}\`"
+            echo ""
+            echo "Nothing upgrades automatically. To pick it up:"
+            echo '```bash'
+            echo "npm i @dragonia/shared@${version}   # in multiverse, health-metrics, …"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
