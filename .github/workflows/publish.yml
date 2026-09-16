@@ -22,9 +22,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # No setup-node and no registry-url: the runner's own Node is used, and the scope mapping
-      # plus the publish token live in /root/.npmrc, mounted into the container by Ansible. The
-      # credential for a LAN-only registry never passes through GitHub.
+      # The runner image carries a Node for its own internals but puts none on a job's PATH, so
+      # `npm` is not there without this. 22 to match the Dockerfile the services build from and the
+      # `engines` field here — a package built on a newer Node than its consumers run is a way to
+      # ship syntax they cannot parse.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Deliberately no `registry-url` on setup-node: that makes it write its own .npmrc into the
+      # workspace, which would shadow the one Ansible mounts at /root/.npmrc — the file carrying
+      # both the @dragonia scope mapping and the publish credential. The credential for a LAN-only
+      # registry has no reason to pass through GitHub as a secret.
       - name: Install
         run: npm ci
 
