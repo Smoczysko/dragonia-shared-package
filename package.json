@@ -1,6 +1,6 @@
 {
   "name": "@dragonia/shared",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "The paved-road foundation every Dragonia service imports: validated config, observability, and typed Kafka.",
   "license": "MIT",
   "type": "module",

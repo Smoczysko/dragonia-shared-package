@@ -76,14 +76,18 @@ export interface ServiceReport {
 /**
  * One page of reports, newest first.
  *
- * `total` is here despite costing a `COUNT` per request, because the console paginates by page
- * number and cannot render "3 of 12" without it. At a few thousand narrow rows that count is free;
- * the alternative — a `hasMore` flag — would force an infinite-scroll UI to avoid a cost nobody is
- * paying.
+ * `skip` and `take` are echoed back rather than assumed, because they are clamped on the way in:
+ * a caller that asked for 9,999 rows needs to be told it got 100, or it will conclude the table
+ * ended.
+ *
+ * `total` is here despite costing a `COUNT` per request. The console renders page numbers even
+ * though the API speaks offsets, and "3 of 12" is not derivable from a short page alone. At a few
+ * thousand narrow rows that count is free; the alternative — a `hasMore` flag — would force an
+ * infinite-scroll UI to avoid a cost nobody is paying.
  */
 export interface ReportPage {
-  page: number;
-  pageSize: number;
+  skip: number;
+  take: number;
   total: number;
   reports: ServiceReport[];
 }

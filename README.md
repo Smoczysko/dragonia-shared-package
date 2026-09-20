@@ -65,10 +65,19 @@ a legible row, and gains a reason to change whenever any of them adds one. With 
 renders a string. `counts` exists for when the string is not enough.
 
 **The query is validated, the response is only typed.** The console only reads the response, so an
-interface is enough. But four services have to coerce, clamp and default the same two query
-parameters, and four hand-written copies of that is how they start disagreeing about what `?page=0`
-means. A page past the end returns an empty array and an honest `total`, never a 400 — asking for
-page 9 of 3 is a fact about an empty table, not a client error.
+interface is enough. But every reporting service has to coerce, clamp and default the same two
+parameters, and a hand-written copy per service is how they start disagreeing about what `?skip=-1`
+means.
+
+`?skip=&take=` rather than page numbers — GraphQL's convention, and Prisma's, so the query
+parameter, the store method and the database call all say the same word. The console still renders
+page numbers; `total` is what lets it.
+
+**Everything is clamped, never rejected.** A negative `skip` is the start, an oversized `take` is
+the maximum, a non-integer is the default, and a `skip` past the end is an empty array with an
+honest `total` — never a 400. That is enforced with `transform`: `min`/`max` *reject*, and an
+earlier version of this schema did exactly that, answering 500 while its own comment promised
+clamping.
 
 ## Why one package and not three
 

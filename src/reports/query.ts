@@ -1,46 +1,54 @@
 import { z } from 'zod';
 
-/** The most rows one request may ask for, however hard it asks. */
-export const MAX_PAGE_SIZE = 100;
+/** The most rows one request may take, however many it asks for. */
+export const MAX_TAKE = 100;
 
-/** What the grid shows without being told otherwise. */
-export const DEFAULT_PAGE_SIZE = 10;
+/** What the grid takes without being told otherwise. */
+export const DEFAULT_TAKE = 10;
 
 /**
- * `?page=&pageSize=` — the only part of this contract that is validated rather than merely typed.
+ * `?skip=&take=` — the only part of this contract that is validated rather than merely typed.
  *
- * The response is a plain interface because the console only ever reads it. These two are different:
- * four services have to coerce, clamp and default the same two query parameters, and four
- * hand-written copies of that is how four services start disagreeing about what `?page=0` means.
+ * The response is a plain interface because the console only ever reads it. These two are
+ * different: every reporting service has to coerce, clamp and default the same two parameters, and
+ * a hand-written copy per service is how they start disagreeing about what `?skip=-1` means.
  *
- * **Everything is permissive and clamped rather than rejected.** A page past the end is a fact
- * about an empty table, not a client error — it returns an empty array with an honest `total`, and
- * a grid that asked for page 9 of 3 should show nothing rather than a 400.
+ * **Offsets rather than page numbers**, matching GraphQL's convention and — usefully — Prisma's
+ * own `skip`/`take`, so the query parameter, the store method and the database call all say the
+ * same word. The console still renders page numbers; `total` is what lets it.
+ *
+ * **Everything is clamped, never rejected**, and that is enforced rather than merely intended:
+ * `min`/`max` *reject*, so an earlier version of this schema threw on out-of-range input and the
+ * route answered 500 while this comment claimed the opposite. `transform` is what actually clamps.
+ *
+ * Nothing a caller can put in these two is an error. A negative `skip` means the start, an
+ * oversized `take` means the maximum, and anything that is not a whole number — `banana`, `2.7`,
+ * absent — means the default. A grid asking for something silly should show rows rather than a
+ * stack trace, and a `skip` past the end is a fact about an empty table: an empty array with an
+ * honest `total`.
  */
 export const ReportQuery = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce
+  skip: z.coerce
     .number()
     .int()
-    .min(1)
-    .max(MAX_PAGE_SIZE)
-    .default(DEFAULT_PAGE_SIZE),
+    .optional()
+    .catch(undefined)
+    .transform((skip) => {
+      return skip === undefined || skip < 0 ? 0 : skip;
+    }),
+
+  take: z.coerce
+    .number()
+    .int()
+    .optional()
+    .catch(undefined)
+    .transform((take) => {
+      if (take === undefined) {
+        return DEFAULT_TAKE;
+      }
+
+      return Math.min(Math.max(take, 1), MAX_TAKE);
+    }),
 });
 
 export type ReportQuery = z.infer<typeof ReportQuery>;
-
-/**
- * Turn a validated query into the two numbers a database wants.
- *
- * Trivial, and shared anyway: an off-by-one in this arithmetic silently repeats or skips a row at
- * every page boundary, which is exactly the kind of bug that survives review in four places.
- */
-export function toOffset(query: ReportQuery): {
-  limit: number;
-  offset: number;
-} {
-  return {
-    limit: query.pageSize,
-    offset: (query.page - 1) * query.pageSize,
-  };
-}
