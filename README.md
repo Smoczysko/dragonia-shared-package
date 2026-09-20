@@ -23,9 +23,10 @@ There is no root entry point, on purpose: importing `/config` should not pull th
 into the module graph.
 
 ```ts
-import { loadConfig }        from '@dragonia/shared/config';
-import { initObservability } from '@dragonia/shared/observability';
-import { createConsumer }    from '@dragonia/shared/kafka';
+import { loadConfig }         from '@dragonia/shared/config';
+import { initObservability }  from '@dragonia/shared/observability';
+import { createConsumer }     from '@dragonia/shared/kafka';
+import type { ServiceReport } from '@dragonia/shared/reports';
 ```
 
 Plus the preload entry, which is the only module here with a side effect on import:
@@ -33,6 +34,41 @@ Plus the preload entry, which is the only module here with a side effect on impo
 ```bash
 node --import @dragonia/shared/observability/tracing dist/main.js
 ```
+
+## `/reports` is a contract, not an implementation
+
+Unlike the other three subpaths, `/reports` ships almost no code — a `ReportQuery` schema and an
+offset helper, and otherwise types. That is the whole point.
+
+Every scheduled service keeps its own table of what it did and serves it at `GET /reports`; the
+console renders whichever ones declare it. The services cannot share a write path — vault uses
+postgres.js and node-pg-migrate, health-metrics uses Prisma — so what they share is the shape the
+console reads.
+
+```ts
+interface ServiceReport {
+  id: string;
+  task: string;                    // 'scryfall:all_cards' | 'poll' | 'images'
+  status: 'success' | 'partial' | 'failed';
+  startedAt: string;               // ISO 8601
+  finishedAt: string;
+  durationMs: number;
+  summary: string;                 // the human line the console renders
+  counts: Record<string, number>;  // the service's own vocabulary
+  correlationId?: string;          // groups one run's several reports
+  error?: string;
+}
+```
+
+**`summary` is load-bearing.** Without it the console must learn every service's counters to render
+a legible row, and gains a reason to change whenever any of them adds one. With it the console
+renders a string. `counts` exists for when the string is not enough.
+
+**The query is validated, the response is only typed.** The console only reads the response, so an
+interface is enough. But four services have to coerce, clamp and default the same two query
+parameters, and four hand-written copies of that is how they start disagreeing about what `?page=0`
+means. A page past the end returns an empty array and an honest `total`, never a 400 — asking for
+page 9 of 3 is a fact about an empty table, not a client error.
 
 ## Why one package and not three
 

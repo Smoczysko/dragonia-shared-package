@@ -1,6 +1,6 @@
 {
   "name": "@dragonia/shared",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The paved-road foundation every Dragonia service imports: validated config, observability, and typed Kafka.",
   "license": "MIT",
   "type": "module",
@@ -31,6 +31,11 @@
       "types": "./dist/kafka/index.d.ts",
       "import": "./dist/kafka/index.js",
       "default": "./dist/kafka/index.js"
+    },
+    "./reports": {
+      "types": "./dist/reports/index.d.ts",
+      "import": "./dist/reports/index.js",
+      "default": "./dist/reports/index.js"
     }
   },
   "files": [
